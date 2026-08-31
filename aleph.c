@@ -1,0 +1,698 @@
+#include "aleph.h"
+
+int tipo_dato;
+
+int preguntaType(struct ast *);
+int preguntaType2(struct ast *);
+
+struct symbol symtab[9997];
+
+static unsigned symhash(char *sym)
+{
+    unsigned int hash = 0;
+    unsigned c;
+
+    while (c = *sym++)
+        hash = hash * 9 ^ c;
+
+    return hash;
+}
+
+struct symbol *lookup(char *sym)
+{
+    struct symbol *sp = &symtab[symhash(sym) % 9997];
+    int scount = NHASH;
+
+    while (--scount >= 0)
+    {
+        if (sp->name && !strcmp(sp->name, sym))
+            return sp;
+
+        if (!sp->name)
+        {
+            sp->name = strdup(sym);
+            sp->value = NULL;
+            // sp->func = NULL;
+            sp->syms = NULL;
+            return sp;
+        }
+
+        if (++sp >= symtab + 9997) /* prueba con la siguiente entrada */
+            sp = symtab;
+    }
+    yyerror("la tabla de sÃ­mbolos estÃ¡ agotada\n");
+    abort();
+}
+struct symlist *newsymlist(struct symbol *sym, struct symlist *next)
+{
+    struct symlist *sl = malloc(sizeof(struct symlist));
+
+    if (!sl)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+
+    sl->sym = sym;
+    sl->next = next;
+    return sl;
+}
+
+struct ast *newref(struct symbol *s)
+{
+    struct symref *a = malloc(sizeof(struct symref));
+
+    if (!a)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+
+    a->nodetype = REF;
+    a->s = s;
+    return (struct ast *)a;
+}
+
+struct ast *newasgn(struct symbol *s, struct ast *v)
+{
+    struct symasgn *a = malloc(sizeof(struct symasgn));
+
+    if (!a)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+
+    a->nodetype = ASIG;
+    a->s = s;
+    a->v = v;
+    return (struct ast *)a;
+}
+
+struct ast *newast(int nodetype, struct ast *l, struct ast *r)
+{
+    struct ast *a = malloc(sizeof(struct ast));
+
+    if (!a)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+
+    a->nodetype = nodetype;
+    a->l = l;
+    a->r = r;
+    return a;
+}
+
+struct ast *newelem(char *d)
+{
+    tset a = malloc(sizeof(tset));
+    char *aux;
+    aux = (char *)malloc(sizeof(char) * 255);
+    if (!a)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+
+    a->type = ELE;
+    strcpy(aux, d);
+    a->str = aux;
+    return (struct ast *)a;
+}
+
+tset eval(struct ast *a)
+{ // crear caso SET y caso LIST para ello la variable global
+    tset v;
+    if (!a)
+    {
+        yyerror("error interno, evaluacion nula");
+        return NULL;
+    }
+    switch (a->nodetype)
+    {
+        break;
+
+    case SET:
+        tipo_dato = SET;
+        v = eval(a->l);
+        v = depuracion(v);
+        break;
+
+    case LIST:
+        tipo_dato = LIST;
+        v = eval(a->l);
+        break;
+
+    case LIST_E:
+        v = newData();
+        v->type = tipo_dato;
+        v->elem = eval(a->l);
+        if (a->r)
+        {
+            v->sig = eval(a->r);
+        }
+        break;
+
+    case ELE:
+        v = newData();
+        v->type = STR;
+        v->str = ((struct elemast *)a)->str;
+        break;
+    case NULOCONJ:
+        v = newData();
+        v->type = SET;
+        v->elem = NULL;
+        break;
+    case NULOLIST:
+        v = newData();
+        v->type = LIST;
+        v->elem = NULL;
+        break;
+
+    /*operaciones de listas*/
+    case OP_POP:
+        tset aux;
+
+        aux = eval(a->l);
+
+        if (aux != NULL && aux->type == LIST)
+        {
+            // 2. Si la evaluación fue exitosa y el tipo es LIST
+
+            //printf("  Lista antes de POP: ");
+            //printData(aux);
+            //printf("\n");
+
+            // 3. Ejecuta la operación
+            v = POP(&aux);
+
+            // 4. Imprime el resultado
+
+
+        }
+        else
+        {
+            v = NULL;
+        }
+
+        fflush(stdout);
+        break;
+
+
+    case OP_PUSH:
+
+        tset listap = eval(a->l);
+        tset elemento = eval(a->r);
+        if (listap != NULL && listap->type == 2 && elemento != NULL){
+            v = Carga_Cola(listap, elemento);
+        }
+        else
+            {
+                printf("\n error valores incorrectos \n");
+                v = NULL;
+            }
+
+        break;
+
+    /* operacionies conjunto */
+    case OP_UN:
+        //printf("Union\n");
+
+        tset izq = eval(a->l);
+        tset der = eval(a->r);
+        if (izq != NULL && der != NULL && izq->type == SET && der->type == SET)
+        {
+            //printf("Primer conjunto\n");
+            //printData(izq);
+
+            //printf("\nSegundo Conjunto\n");
+            //printData(der);
+
+            // 3. REALIZAR LA OPERACIÓN
+            v = U(izq, der); // Usar U, no UNION
+            //printf("\nResultado\n");
+            //printData(v);
+        }
+        // Si falla el chequeo de tipos (o si eval devolvió NULL):
+        else
+        {
+            printf("\n error valores incorrectos (Tipos incompatibles o nulos) \n");
+            v = NULL;
+        }
+
+        break;
+
+    case OP_INTE:
+        {
+        //printf("Inteseccion");
+        tset izq = eval(a->l);
+        tset der = eval(a->r);
+        if (izq != NULL && der != NULL && izq->type == SET && der->type == SET)
+        {
+            // 3. REALIZAR LA OPERACIÓN
+            v = INTER(izq, der);
+
+            if (v == NULL)
+            {
+                // Crea un nuevo contenedor para el conjunto vacío
+                v = newData();
+                v->type = SET; // Asumo que 3 es SET, pero si no, usa el tipo correcto
+                v->elem = NULL;
+            }
+        }
+        else // Si falla el chequeo de tipos/punteros nulos:
+        {
+            printf("\n error valores incorrectos (Tipos incompatibles o nulos) \n");
+            v = NULL;
+        }
+        }   
+
+        break;
+
+    case OP_DIFC:
+        {
+        //printf("Diferencia");
+
+        tset izq = eval(a->l);
+        tset der = eval(a->r);
+        if (izq != NULL && der != NULL && izq->type == SET && der->type == SET)
+        {
+            // 3. REALIZAR LA OPERACIÓN
+            v = DIFF(izq, der);
+
+            if (v == NULL)
+            {
+                // Crea un nuevo contenedor para el conjunto vacío
+                v = newData();
+                v->type = SET;
+                v->elem = NULL;
+            }
+        }
+        else // Si falla el chequeo de tipos/punteros nulos:
+        {
+            printf("\n error valores incorrectos (Tipos incompatibles o nulos) \n");
+            v = NULL;
+        }
+        }
+
+        break;
+
+    /* expresiones */
+    case REF:
+        struct symbol *aux2;
+        aux2 = ((struct symref *)a)->s;
+        v = aux2->value;
+        break;
+
+    case ASIG:
+        //printf("Usando AS");
+        struct symbol *aux3;
+        aux3 = ((struct symasgn *)a)->s;
+        v = aux3->value = eval(((struct symasgn *)a)->v);
+        break;
+
+    case M_ASIG:
+        //printf("Usando AM");
+        struct ast *LIDENT;
+        struct ast *LEXPR;
+        struct symbol *aux4;
+        tset kk;
+        LIDENT = a->l;
+        LEXPR = a->r;
+        v = NULL;
+        while (LIDENT != NULL && LEXPR != NULL)
+        {
+            tset resultado;
+            aux4 = ((struct symref *)LIDENT->l)->s;
+            resultado = eval(LEXPR->l);
+            aux4->value=resultado;
+            //v = resultado;
+            LIDENT = LIDENT->r;
+            LEXPR = LEXPR->r;
+        }
+        break;
+
+    }
+    return v;
+}
+
+int preguntaType(struct ast *a)
+{
+    int v;
+    switch (a->l->nodetype)
+    {
+    case LIST:
+        switch (a->r->nodetype)
+        {
+        case LIST: // a->l->LIST && a->r->LISt
+            v = 1;
+            break;
+
+        case REF: // a->l->LIST && a->r>REF
+            if (((struct symref *)a->r)->s->value != NULL)
+            {
+                if (((struct symref *)a->r)->s->value->type == LIST)
+                {
+                    v = 1;
+                }
+                else
+                {
+                    // printf("\n Error la 2da expresion no es lista");
+                    v = 0;
+                }
+            }
+            else
+            {
+                // printf("\n Error la 2da expresion es NULL");
+                v = 0;
+            }
+            break;
+
+        case OP_POP:
+        case OP_PUSH:
+            tset interior2;
+            interior2 = eval(a->r);
+            if (interior2->type == LIST)
+            {
+                v = 1;
+            }
+            else
+            {
+                v = 0;
+            }
+            break;
+
+        default:
+            // printf("\n Error la 2da expresion es cualqueir cosa");
+            v = 0;
+            break;
+        }
+        break;
+
+    case REF:
+        if (((struct symref *)a->l)->s->value != NULL)
+        {
+            if (((struct symref *)a->l)->s->value->type == LIST)
+            {
+                switch (a->r->nodetype)
+                {
+                case LIST: // a->l->REF && a->r->LISt
+                    v = 1;
+                    break;
+
+                case REF: // a->l->REF && a->r>REF
+                    if (((struct symref *)a->r)->s->value != NULL)
+                    {
+                        if (((struct symref *)a->r)->s->value->type == LIST)
+                        {
+                            v = 1;
+                        }
+                        else
+                        {
+                            // printf("\n Error la 2da expresion no es lista");
+                            v = 0;
+                        }
+                    }
+                    else
+                    {
+                        // printf("\n Error la 2da expresion es NULL");
+                        v = 0;
+                    }
+                    break;
+
+                case OP_POP:
+                case OP_PUSH:
+                    tset interior2;
+                    interior2 = eval(a->r);
+                    if (interior2->type == LIST)
+                    {
+                        v = 1;
+                    }
+                    else
+                    {
+                        v = 0;
+                    }
+                    break;
+
+                default:
+                    // printf("\n Error la 2da expresion es cualqueir cosa");
+                    v = 0;
+                    break;
+                }
+            }
+            else
+            {
+                // printf("\n Error la 1ra expresion es un conjunto");
+                v = 0;
+            }
+        }
+        else
+        {
+            // printf("\n Error la 1ra expresion es NULL");
+            v = 0;
+        }
+        break;
+    case OP_POP:
+    case OP_PUSH:
+        tset interior;
+        interior = eval(a->l);
+        if (interior->type == LIST)
+        {
+            switch (a->r->nodetype)
+            {
+            case LIST: // a->l->LIST && a->r->LISt
+                v = 1;
+                break;
+
+            case REF: // a->l->LIST && a->r>REF
+                if (((struct symref *)a->r)->s->value != NULL)
+                {
+                    if (((struct symref *)a->r)->s->value->type == LIST)
+                    {
+                        v = 1;
+                    }
+                    else
+                    {
+                        // printf("\n Error la 2da expresion no es lista");
+                        v = 0;
+                    }
+                }
+                else
+                {
+                    // printf("\n Error la 2da expresion es NULL");
+                    v = 0;
+                }
+                break;
+            case OP_POP:
+            case OP_PUSH:
+                tset interior2;
+                interior2 = eval(a->r);
+                if (interior2->type == LIST)
+                {
+                    v = 1;
+                }
+                else
+                {
+                    v = 0;
+                }
+                break;
+            default:
+                // printf("\n Error la 2da expresion es cualqueir cosa");
+                v = 0;
+                break;
+            }
+        }
+        else
+        {
+            v = 0;
+        }
+        break;
+    default:
+        // printf("\n Error la 1ra exprecion es %d",a->l->nodetype);
+        v = 0;
+        break;
+    }
+    return v;
+}
+int preguntaType2(struct ast *a)
+{
+    int v;
+    switch (a->l->nodetype)
+    {
+    case SET:
+        switch (a->r->nodetype)
+        {
+        case SET: // a->l->LIST && a->r->LISt
+            v = 1;
+            break;
+
+        case REF: // a->l->LIST && a->r>REF
+            if (((struct symref *)a->r)->s->value != NULL)
+            {
+                if (((struct symref *)a->r)->s->value->type == SET)
+                {
+                    v = 1;
+                }
+                else
+                {
+                    // printf("\n Error la 2da expresion no es lista");
+                    v = 0;
+                }
+            }
+            else
+            {
+                // printf("\n Error la 2da expresion es NULL");
+                v = 0;
+            }
+            break;
+        case OP_DIFC:
+
+        case OP_INTE:
+
+        case OP_UN:
+            tset interior2;
+            interior2 = eval(a->r);
+            if (interior2->type == SET)
+            {
+                v = 1;
+            }
+            else
+            {
+                v = 0;
+            }
+            break;
+        default:
+            // printf("\n Error la 2da expresion es cualqueir cosa");
+            v = 0;
+            break;
+        }
+        break;
+
+    case REF:
+        if (((struct symref *)a->l)->s->value != NULL)
+        {
+            if (((struct symref *)a->l)->s->value->type == SET)
+            {
+                switch (a->r->nodetype)
+                {
+                case SET:
+                    v = 1;
+                    break;
+
+                case REF:
+                    if (((struct symref *)a->r)->s->value != NULL)
+                    {
+                        if (((struct symref *)a->r)->s->value->type == SET)
+                        {
+                            v = 1;
+                        }
+                        else
+                        {
+                            v = 0;
+                        }
+                    }
+                    else
+                    {
+                        v = 0;
+                    }
+                    break;
+                case OP_DIFC:
+
+                case OP_INTE:
+
+                case OP_UN:
+                    tset interior2;
+                    interior2 = eval(a->r);
+                    if (interior2->type == SET)
+                    {
+                        v = 1;
+                    }
+                    else
+                    {
+                        v = 0;
+                    }
+                    break;
+                default:
+                    v = 0;
+                    break;
+                }
+            }
+            else
+            {
+                v = 0;
+            }
+        }
+        else
+        {
+            v = 0;
+        }
+        break;
+    case OP_DIFC:
+
+    case OP_INTE:
+
+    case OP_UN:
+        tset interior;
+        interior = eval(a->l);
+        if (interior->type == SET)
+        {
+            switch (a->r->nodetype)
+            {
+            case SET: // a->l->LIST && a->r->LISt
+                v = 1;
+                break;
+
+            case REF: // a->l->LIST && a->r>REF
+                if (((struct symref *)a->r)->s->value != NULL)
+                {
+                    if (((struct symref *)a->r)->s->value->type == SET)
+                    {
+                        v = 1;
+                    }
+                    else
+                    {
+                        // printf("\n Error la 2da expresion no es lista");
+                        v = 0;
+                    }
+                }
+                else
+                {
+                    // printf("\n Error la 2da expresion es NULL");
+                    v = 0;
+                }
+                break;
+            case OP_DIFC:
+
+            case OP_INTE:
+
+            case OP_UN:
+                tset interior2;
+                interior2 = eval(a->r);
+                if (interior2->type == SET)
+                {
+                    v = 1;
+                }
+                else
+                {
+                    v = 0;
+                }
+                break;
+            default:
+                // printf("\n Error la 2da expresion es cualqueir cosa");
+                v = 0;
+                break;
+            }
+        }
+        else
+        {
+            v = 0;
+        }
+        break;
+    default:
+        v = 0;
+        break;
+    }
+    return v;
+}
