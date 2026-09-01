@@ -73,6 +73,31 @@ struct ast *newref(struct symbol *s)
     return (struct ast *)a;
 }
 
+
+struct ast *newflow(int nodetype, struct ast *cond, struct ast *t_branch, struct ast *f_branch) {
+    struct flowast *a = malloc(sizeof(struct flowast));
+    if (!a) {
+        yyerror("Error: memoria insuficiente para control de flujo");
+        exit(0);
+    }
+    a->nodetype = nodetype;
+    a->cond = cond;
+    a->true_branch = t_branch;
+    a->false_branch = f_branch;
+    return (struct ast *)a;
+}
+
+
+struct ast *newflow(int nodetype, struct ast *cond, struct ast *t_branch, struct ast *f_branch) {
+    struct flowast *a = malloc(sizeof(struct flowast));
+    if (!a) { yyerror("Memoria insuficiente"); exit(1); }
+    a->nodetype = nodetype;
+    a->cond = cond;
+    a->true_branch = t_branch;
+    a->false_branch = f_branch;
+    return (struct ast *)a;
+}
+
 struct ast *newasgn(struct symbol *s, struct ast *v)
 {
     struct symasgn *a = malloc(sizeof(struct symasgn));
@@ -124,16 +149,25 @@ struct ast *newelem(char *d)
 
 tset eval(struct ast *a)
 { // crear caso SET y caso LIST para ello la variable global
-    tset v;
-    if (!a)
     {
-        yyerror("error interno, evaluacion nula");
-        return NULL;
-    }
-    switch (a->nodetype)
-    {
-        break;
+    if (!a) return NULL;
+    tset v = NULL;
 
+    switch (a->nodetype) {
+        case N_IF_ELSE:
+        case N_IF: {
+            struct flowast *flow = (struct flowast *)a;
+            tset condicion = eval(flow->cond);
+            
+            /* Lógica: Si el conjunto no es nulo y tiene elementos, es TRUE */
+            if (condicion != NULL && condicion->elem != NULL) {
+                v = eval(flow->true_branch);
+            } else if (flow->false_branch != NULL) {
+                v = eval(flow->false_branch);
+            }
+            break;
+        }
+    }
     case SET:
         tipo_dato = SET;
         v = eval(a->l);
@@ -300,6 +334,33 @@ tset eval(struct ast *a)
         break;
 
     /* expresiones */
+    case N_IF:
+    case N_IF_ELSE: {
+        struct flowast *flow = (struct flowast *)a;
+        tset condicion = eval(flow->cond);
+        
+        /* Lógica: Si el conjunto evaluado no es nulo/vacío, es verdadero */
+        if (condicion != NULL && condicion->elem != NULL) {
+            v = eval(flow->true_branch);
+        } else if (flow->false_branch != NULL) {
+            v = eval(flow->false_branch);
+        } else {
+            v = NULL; 
+        }
+        break;
+    }
+    case N_WHILE: {
+        struct flowast *flow = (struct flowast *)a;
+        v = NULL;
+        while (1) {
+            tset condicion = eval(flow->cond);
+            if (condicion == NULL || condicion->elem == NULL) {
+                break;
+            }
+            v = eval(flow->true_branch);
+        }
+        break;
+    }
     case REF:
         struct symbol *aux2;
         aux2 = ((struct symref *)a)->s;

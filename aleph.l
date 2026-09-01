@@ -9,12 +9,18 @@
 %option noyywrap
 
 %%
+"if" {return IF;}
+"while" {return WHILE;}
+"def" {return DEF;}
+"return" {return RETURN;}
 "=" {return ASIGNACION;}
 "pop" {return POPA;}
 "push" {return PUSHA;}
 "difc" {return DIFC;}
 "inter" {return INTE;}
 "un" {return UN;} 
+"(" {return PAREN_I;}
+")" {return PAREN_D;}
 "{" {return LLAVE_I;}
 "}" {return LLAVE_D;}
 "[" {return CORCH_I;}

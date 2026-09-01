@@ -17,8 +17,13 @@ tset salida;
 %token LLAVE_I LLAVE_D CORCH_I CORCH_D
 %token INTE UN DIFC POPA PUSHA
 %token EOL
+%token IF ELSE WHILE DEF RETURN
+%token PAREN_I PAREN_D
 
-%type <a> list_expr expr lit_list lit_conj sentencia operaciones  op_conj op_list asignacion list_asig
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
+
+%type <a> list_expr expr lit_list lit_conj sentencia operaciones op_conj op_list asignacion list_asig estructuras_control def_func
 
 %left UN DIFC
 %left INTE
@@ -31,6 +36,23 @@ aleph: aleph sentencia EOL {salida=eval($2);if (salida)muestra(salida); printf("
 
 sentencia: expr
 |asignacion
+|estructuras_control
+|def_func
+|RETURN expr { $$ = newast(N_RETURN, $2, NULL); }
+;
+
+estructuras_control: 
+  IF PAREN_I expr PAREN_D LLAVE_I list_expr LLAVE_D %prec LOWER_THAN_ELSE
+    { $$ = newflow(N_IF, $3, $6, NULL); }
+| IF PAREN_I expr PAREN_D LLAVE_I list_expr LLAVE_D ELSE LLAVE_I list_expr LLAVE_D 
+    { $$ = newflow(N_IF_ELSE, $3, $6, $10); }
+| WHILE PAREN_I expr PAREN_D LLAVE_I list_expr LLAVE_D 
+    { $$ = newflow(N_WHILE, $3, $6, NULL); }
+;
+
+def_func: DEF IDVARIABLE PAREN_I list_asig PAREN_D LLAVE_I list_expr LLAVE_D { 
+    $$ = newast(N_DEF, newref($2), newast(N_FUNARGS, $4, newast(N_BLOCK, $7, NULL))); 
+}
 ;
 
 expr:IDCADENA    {$$=newelem($1);}   
@@ -38,12 +60,12 @@ expr:IDCADENA    {$$=newelem($1);}
 |lit_list
 |operaciones 
 |IDVARIABLE          {$$=newref($1);}
+|IDVARIABLE PAREN_I list_expr PAREN_D { $$ = newast(N_CALL, newref($1), $3); }
 ;
-
 
 asignacion:
     list_asig ASIGNACION list_expr {$$=newast(M_ASIG,$1,$3);}
-//!hay problema con el list_expr por ast
+    /* El problema semántico de evaluar variables múltiples contra listas se resolverá estrictamente en eval() */
 
 list_asig: 
     IDVARIABLE   {$$=newast(L_IDVAR,newref($1),NULL);}

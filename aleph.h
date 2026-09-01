@@ -20,23 +20,45 @@
 #define NULOCONJ 17
 #define NULOLIST 18
 
+/* Nuevos nodos para funciones y control de flujo */
+#define N_DEF 19
+#define N_CALL 20
+#define N_FUNARGS 21
+#define N_BLOCK 22
+#define N_IF 23
+#define N_WHILE 24
+#define N_RETURN 25
+
+
 extern int yylineno;
 void yyerror(char *s);
+
+struct flowast {
+    int nodetype;             /* Estrictamente el mismo int de tu struct ast */
+    struct ast *cond;         /* Condición a evaluar */
+    struct ast *true_branch;  /* Rama principal */
+    struct ast *false_branch; /* Rama else (o NULL) */
+};
+
+
+struct ast *newflow(int nodetype, struct ast *cond, struct ast *t_branch, struct ast *f_branch);
+
 
 struct symbol
 {
     char *name;
     tset value;
-    // struct ast *func;
-    struct symlist *syms;
+    struct ast *func;     /* Descomentado para almacenar el AST de la funcion */
+    struct symlist *syms; /* Descomentado para la lista de parametros */
 };
+
 struct symlist
 {
     struct symbol *sym;
     struct symlist *next;
 };
 
-#define NHASH 9997;
+#define NHASH 9997
 
 struct symbol *lookup(char *);
 
@@ -46,32 +68,32 @@ struct ast
     struct ast *l;
     struct ast *r;
 };
+
 struct symref
 {
-    int nodetype; /* tipo N */
+    int nodetype; 
     struct symbol *s;
 };
 
 struct symasgn
 {
-    int nodetype; /* tipo = */
+    int nodetype; 
     struct symbol *s;
-    struct ast *v; /* valor */
+    struct ast *v; 
 };
 
 struct elemast
-{                 // numval cambiado
-    int nodetype; /* tipo K */
-    char *str;    /*esto se modifico de un doble a un char* */
+{                 
+    int nodetype; 
+    char *str;    
 };
 
 struct symlist *newsymlist(struct symbol *sym, struct symlist *next);
-
 struct symbol *lookup(char *sym);
 struct ast *newast(int nodetype, struct ast *l, struct ast *r);
 struct ast *newelem(char *d);
 struct ast *newref(struct symbol *s);
 struct ast *newasgn(struct symbol *s, struct ast *v);
-tset eval(struct ast *); /*se cambio de un dobule*/
-
+tset eval(struct ast *); 
 struct ast *newastI(int nodetype, struct symbol *l, struct ast *r);
+void free_ast(struct ast *a);
