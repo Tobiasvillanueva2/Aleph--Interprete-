@@ -6,6 +6,68 @@ int preguntaType(struct ast *);
 int preguntaType2(struct ast *);
 
 struct symbol symtab[9997];
+ 
+tset retval;
+jmp_buf *return_env = NULL;
+ 
+int esVerdadero(tset v)
+{
+    if (v == NULL)
+        return 0;
+    if (v->type == STR)
+        return (v->str != NULL && strlen(v->str) > 0);
+    return (v->elem != NULL);
+}
+ 
+struct ast *newif(struct ast *cond, struct ast *th, struct ast *el)
+{
+    struct ifast *a = malloc(sizeof(struct ifast));
+    if (!a)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+    a->nodetype = IFNODE;
+    a->cond = cond;
+    a->th = th;
+    a->el = el;
+    return (struct ast *)a;
+}
+ 
+struct ast *newfunc(struct symbol *s, struct symlist *params, struct ast *body, int esvoid)
+{
+    struct funcdef *a = malloc(sizeof(struct funcdef));
+    if (!a)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+    a->nodetype = FUNC_DEF;
+    a->s = s;
+    a->params = params;
+    a->body = body;
+    a->esvoid = esvoid;
+ 
+    s->func = (struct ast *)a;
+    s->syms = params;
+    s->functype = esvoid ? 2 : 1;
+ 
+    return (struct ast *)a;
+}
+ 
+struct ast *newcall(struct symbol *s, struct ast *args)
+{
+    struct funcall *a = malloc(sizeof(struct funcall));
+    if (!a)
+    {
+        yyerror("no hay espacio");
+        exit(0);
+    }
+    a->nodetype = FUNC_CALL;
+    a->s = s;
+    a->args = args;
+    return (struct ast *)a;
+}
 
 static unsigned symhash(char *sym)
 {
@@ -73,31 +135,6 @@ struct ast *newref(struct symbol *s)
     return (struct ast *)a;
 }
 
-
-struct ast *newflow(int nodetype, struct ast *cond, struct ast *t_branch, struct ast *f_branch) {
-    struct flowast *a = malloc(sizeof(struct flowast));
-    if (!a) {
-        yyerror("Error: memoria insuficiente para control de flujo");
-        exit(0);
-    }
-    a->nodetype = nodetype;
-    a->cond = cond;
-    a->true_branch = t_branch;
-    a->false_branch = f_branch;
-    return (struct ast *)a;
-}
-
-
-struct ast *newflow(int nodetype, struct ast *cond, struct ast *t_branch, struct ast *f_branch) {
-    struct flowast *a = malloc(sizeof(struct flowast));
-    if (!a) { yyerror("Memoria insuficiente"); exit(1); }
-    a->nodetype = nodetype;
-    a->cond = cond;
-    a->true_branch = t_branch;
-    a->false_branch = f_branch;
-    return (struct ast *)a;
-}
-
 struct ast *newasgn(struct symbol *s, struct ast *v)
 {
     struct symasgn *a = malloc(sizeof(struct symasgn));
@@ -132,7 +169,7 @@ struct ast *newast(int nodetype, struct ast *l, struct ast *r)
 
 struct ast *newelem(char *d)
 {
-    tset a = malloc(sizeof(tset));
+    tset a = malloc(sizeof(conjunto));
     char *aux;
     aux = (char *)malloc(sizeof(char) * 255);
     if (!a)
@@ -149,25 +186,16 @@ struct ast *newelem(char *d)
 
 tset eval(struct ast *a)
 { // crear caso SET y caso LIST para ello la variable global
+    tset v;
+    if (!a)
     {
-    if (!a) return NULL;
-    tset v = NULL;
-
-    switch (a->nodetype) {
-        case N_IF_ELSE:
-        case N_IF: {
-            struct flowast *flow = (struct flowast *)a;
-            tset condicion = eval(flow->cond);
-            
-            /* Lógica: Si el conjunto no es nulo y tiene elementos, es TRUE */
-            if (condicion != NULL && condicion->elem != NULL) {
-                v = eval(flow->true_branch);
-            } else if (flow->false_branch != NULL) {
-                v = eval(flow->false_branch);
-            }
-            break;
-        }
+        yyerror("error interno, evaluacion nula");
+        return NULL;
     }
+    switch (a->nodetype)
+    {
+        break;
+
     case SET:
         tipo_dato = SET;
         v = eval(a->l);
@@ -204,6 +232,113 @@ tset eval(struct ast *a)
         v->type = LIST;
         v->elem = NULL;
         break;
+
+    case LIST_STMT:
+        v = eval(a->l);
+        if (a->r)
+            v = eval(a->r);
+        break;
+
+    case IFNODE:
+    {
+        struct ifast *ifa = (struct ifast *)a;
+        tset condv = eval(ifa->cond);
+        if (esVerdadero(condv))
+            v = ifa->th ? eval(ifa->th) : NULL;
+        else
+            v = ifa->el ? eval(ifa->el) : NULL;
+    }
+    break;
+
+    case OP_WHILE:
+        v = NULL;
+        while (esVerdadero(eval(a->l)))
+        {
+            v = eval(a->r);
+        }
+        break;
+
+    case RETURN:
+        retval = a->l ? eval(a->l) : NULL;
+        if (return_env)
+            longjmp(*return_env, 1);
+        else
+            yyerror("retorna fuera de una funcion");
+        break;
+
+    case FUNC_DEF:
+        v = NULL;
+        break;
+
+    case FUNC_CALL:
+    {
+        struct funcall *fc = (struct funcall *)a;
+        struct symbol *fs = fc->s;
+
+        if (fs->func == NULL)
+        {
+            yyerror("funcion no definida");
+            v = NULL;
+            break;
+        }
+
+        struct funcdef *fd = (struct funcdef *)fs->func;
+        struct symlist *sl = fd->params;
+        struct ast *argexpr = fc->args;
+
+#define MAX_PARAMS 32
+        struct symbol *psyms[MAX_PARAMS];
+        tset poldval[MAX_PARAMS];
+        int nparams = 0;
+
+        while (sl != NULL)
+        {
+            tset argv = NULL;
+            if (argexpr != NULL)
+            {
+                argv = eval(argexpr->l);
+                argexpr = argexpr->r;
+            }
+            else
+            {
+                yyerror("faltan argumentos en la llamada");
+            }
+            psyms[nparams] = sl->sym;
+            poldval[nparams] = sl->sym->value;
+            sl->sym->value = argv;
+            nparams++;
+            sl = sl->next;
+        }
+
+        if (argexpr != NULL)
+        {
+            yyerror("demasiados argumentos en la llamada");
+        }
+
+        jmp_buf aqui;
+        jmp_buf *anterior_env = return_env;
+        return_env = &aqui;
+
+        if (setjmp(aqui) == 0)
+        {
+            v = eval(fd->body);
+        }
+        else
+        {
+            v = retval;
+        }
+
+        return_env = anterior_env;
+
+        for (int i = 0; i < nparams; i++)
+        {
+            psyms[i]->value = poldval[i];
+        }
+
+        if (fd->esvoid)
+            v = NULL;
+    }
+    break;
 
     /*operaciones de listas*/
     case OP_POP:
@@ -334,33 +469,6 @@ tset eval(struct ast *a)
         break;
 
     /* expresiones */
-    case N_IF:
-    case N_IF_ELSE: {
-        struct flowast *flow = (struct flowast *)a;
-        tset condicion = eval(flow->cond);
-        
-        /* Lógica: Si el conjunto evaluado no es nulo/vacío, es verdadero */
-        if (condicion != NULL && condicion->elem != NULL) {
-            v = eval(flow->true_branch);
-        } else if (flow->false_branch != NULL) {
-            v = eval(flow->false_branch);
-        } else {
-            v = NULL; 
-        }
-        break;
-    }
-    case N_WHILE: {
-        struct flowast *flow = (struct flowast *)a;
-        v = NULL;
-        while (1) {
-            tset condicion = eval(flow->cond);
-            if (condicion == NULL || condicion->elem == NULL) {
-                break;
-            }
-            v = eval(flow->true_branch);
-        }
-        break;
-    }
     case REF:
         struct symbol *aux2;
         aux2 = ((struct symref *)a)->s;

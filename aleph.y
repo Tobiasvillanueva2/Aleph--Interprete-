@@ -9,6 +9,7 @@ tset salida;
     struct symbol* v;
     struct ast *a;
     char* e;
+    struct symlist *sl;
 }
 %token <v> IDVARIABLE
 %token <e> IDCADENA
@@ -16,14 +17,13 @@ tset salida;
 %token COMA
 %token LLAVE_I LLAVE_D CORCH_I CORCH_D
 %token INTE UN DIFC POPA PUSHA
-%token EOL
-%token IF ELSE WHILE DEF RETURN
+%token FUNC FUNCVOID RETORNA IF ELSE WHILE
 %token PAREN_I PAREN_D
+%token EOL
 
-%nonassoc LOWER_THAN_ELSE
-%nonassoc ELSE
-
-%type <a> list_expr expr lit_list lit_conj sentencia operaciones op_conj op_list asignacion list_asig estructuras_control def_func
+%type <a> list_expr expr lit_list lit_conj sentencia operaciones  op_conj op_list asignacion list_asig
+%type <a> func_def bloque lista_sent ctrl_stmt if_sent while_sent retorna_sent llamada arg_list
+%type <sl> param_list
 
 %left UN DIFC
 %left INTE
@@ -32,40 +32,33 @@ tset salida;
 %%
 aleph: aleph sentencia EOL {salida=eval($2);if (salida)muestra(salida); printf("\n");}
 |sentencia EOL  {salida=eval($1);if (salida)muestra(salida);printf("\n");}
+|aleph func_def   {eval($2);}
+|func_def         {eval($1);}
+|aleph ctrl_stmt  {eval($2);}
+|ctrl_stmt        {eval($1);}
 ;
 
 sentencia: expr
 |asignacion
-|estructuras_control
-|def_func
-|RETURN expr { $$ = newast(N_RETURN, $2, NULL); }
+|retorna_sent
 ;
 
-estructuras_control: 
-  IF PAREN_I expr PAREN_D LLAVE_I list_expr LLAVE_D %prec LOWER_THAN_ELSE
-    { $$ = newflow(N_IF, $3, $6, NULL); }
-| IF PAREN_I expr PAREN_D LLAVE_I list_expr LLAVE_D ELSE LLAVE_I list_expr LLAVE_D 
-    { $$ = newflow(N_IF_ELSE, $3, $6, $10); }
-| WHILE PAREN_I expr PAREN_D LLAVE_I list_expr LLAVE_D 
-    { $$ = newflow(N_WHILE, $3, $6, NULL); }
-;
-
-def_func: DEF IDVARIABLE PAREN_I list_asig PAREN_D LLAVE_I list_expr LLAVE_D { 
-    $$ = newast(N_DEF, newref($2), newast(N_FUNARGS, $4, newast(N_BLOCK, $7, NULL))); 
-}
+retorna_sent: RETORNA expr {$$=newast(RETURN,$2,NULL);}
+|RETORNA {$$=newast(RETURN,NULL,NULL);}
 ;
 
 expr:IDCADENA    {$$=newelem($1);}   
 |lit_conj          
 |lit_list
 |operaciones 
+|llamada
 |IDVARIABLE          {$$=newref($1);}
-|IDVARIABLE PAREN_I list_expr PAREN_D { $$ = newast(N_CALL, newref($1), $3); }
 ;
+
 
 asignacion:
     list_asig ASIGNACION list_expr {$$=newast(M_ASIG,$1,$3);}
-    /* El problema semántico de evaluar variables múltiples contra listas se resolverá estrictamente en eval() */
+//!hay problema con el list_expr por ast
 
 list_asig: 
     IDVARIABLE   {$$=newast(L_IDVAR,newref($1),NULL);}
@@ -94,6 +87,48 @@ lit_list:CORCH_I list_expr CORCH_D      {$$=newast(LIST,$2,NULL);}
 
 list_expr: expr COMA list_expr {$$=newast(LIST_E,$1,$3);}
 |expr {$$=newast(LIST_E,$1,NULL);}
+;
+
+/* ---- NUEVO: bloques y control de flujo ---- */
+
+bloque: LLAVE_I lista_sent LLAVE_D {$$=$2;}
+;
+
+lista_sent: sentencia EOL lista_sent {$$=newast(LIST_STMT,$1,$3);}
+|sentencia EOL                        {$$=newast(LIST_STMT,$1,NULL);}
+|ctrl_stmt lista_sent                 {$$=newast(LIST_STMT,$1,$2);}
+|ctrl_stmt                            {$$=newast(LIST_STMT,$1,NULL);}
+;
+
+ctrl_stmt: if_sent
+|while_sent
+;
+
+if_sent: IF PAREN_I expr PAREN_D bloque             {$$=newif($3,$5,NULL);}
+|IF PAREN_I expr PAREN_D bloque ELSE bloque         {$$=newif($3,$5,$7);}
+;
+
+while_sent: WHILE PAREN_I expr PAREN_D bloque {$$=newast(OP_WHILE,$3,$5);}
+;
+
+/* ---- NUEVO: funciones ---- */
+
+func_def: FUNC IDVARIABLE PAREN_I param_list PAREN_D bloque      {$$=newfunc($2,$4,$6,0);}
+|FUNC IDVARIABLE PAREN_I PAREN_D bloque                          {$$=newfunc($2,NULL,$5,0);}
+|FUNCVOID IDVARIABLE PAREN_I param_list PAREN_D bloque           {$$=newfunc($2,$4,$6,1);}
+|FUNCVOID IDVARIABLE PAREN_I PAREN_D bloque                      {$$=newfunc($2,NULL,$5,1);}
+;
+
+param_list: IDVARIABLE                  {$$=newsymlist($1,NULL);}
+|IDVARIABLE COMA param_list             {$$=newsymlist($1,$3);}
+;
+
+llamada: IDVARIABLE PAREN_I arg_list PAREN_D {$$=newcall($1,$3);}
+|IDVARIABLE PAREN_I PAREN_D                  {$$=newcall($1,NULL);}
+;
+
+arg_list: expr COMA arg_list {$$=newast(LIST_E,$1,$3);}
+|expr                        {$$=newast(LIST_E,$1,NULL);}
 ;
 
     ;

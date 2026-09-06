@@ -1,4 +1,5 @@
 #include "conjunto.h"
+#include <setjmp.h>
 
 #define STR 1
 #define LIST 2
@@ -20,45 +21,31 @@
 #define NULOCONJ 17
 #define NULOLIST 18
 
-/* Nuevos nodos para funciones y control de flujo */
-#define N_DEF 19
-#define N_CALL 20
-#define N_FUNARGS 21
-#define N_BLOCK 22
-#define N_IF 23
-#define N_WHILE 24
-#define N_RETURN 25
-
+#define LIST_STMT 19
+#define IFNODE 20
+#define OP_WHILE 21
+#define RETURN 22
+#define FUNC_DEF 23
+#define FUNC_CALL 24
 
 extern int yylineno;
 void yyerror(char *s);
-
-struct flowast {
-    int nodetype;             /* Estrictamente el mismo int de tu struct ast */
-    struct ast *cond;         /* Condición a evaluar */
-    struct ast *true_branch;  /* Rama principal */
-    struct ast *false_branch; /* Rama else (o NULL) */
-};
-
-
-struct ast *newflow(int nodetype, struct ast *cond, struct ast *t_branch, struct ast *f_branch);
-
 
 struct symbol
 {
     char *name;
     tset value;
-    struct ast *func;     /* Descomentado para almacenar el AST de la funcion */
-    struct symlist *syms; /* Descomentado para la lista de parametros */
+    struct ast *func;
+    struct symlist *syms;
+    int functype;
 };
-
 struct symlist
 {
     struct symbol *sym;
     struct symlist *next;
 };
 
-#define NHASH 9997
+#define NHASH 9997;
 
 struct symbol *lookup(char *);
 
@@ -68,32 +55,64 @@ struct ast
     struct ast *l;
     struct ast *r;
 };
-
 struct symref
 {
-    int nodetype; 
+    int nodetype; /* tipo N */
     struct symbol *s;
 };
 
 struct symasgn
 {
-    int nodetype; 
+    int nodetype; /* tipo = */
     struct symbol *s;
-    struct ast *v; 
+    struct ast *v; /* valor */
 };
 
 struct elemast
-{                 
-    int nodetype; 
-    char *str;    
+{                 // numval cambiado
+    int nodetype; /* tipo K */
+    char *str;    /*esto se modifico de un doble a un char* */
 };
 
+struct ifast
+{
+    int nodetype; /* tipo IFNODE */
+    struct ast *cond;
+    struct ast *th;
+    struct ast *el;
+};
+
+struct funcdef
+{
+    int nodetype; /* tipo FUNC_DEF */
+    struct symbol *s;
+    struct symlist *params;
+    struct ast *body;
+    int esvoid;
+};
+
+struct funcall
+{
+    int nodetype; /* tipo FUNC_CALL */
+    struct symbol *s;
+    struct ast *args;
+};
+
+extern tset retval;
+extern jmp_buf *return_env;
+
 struct symlist *newsymlist(struct symbol *sym, struct symlist *next);
+
 struct symbol *lookup(char *sym);
 struct ast *newast(int nodetype, struct ast *l, struct ast *r);
 struct ast *newelem(char *d);
 struct ast *newref(struct symbol *s);
 struct ast *newasgn(struct symbol *s, struct ast *v);
-tset eval(struct ast *); 
+tset eval(struct ast *); /*se cambio de un dobule*/
+
 struct ast *newastI(int nodetype, struct symbol *l, struct ast *r);
-void free_ast(struct ast *a);
+
+struct ast *newif(struct ast *cond, struct ast *th, struct ast *el);
+struct ast *newfunc(struct symbol *s, struct symlist *params, struct ast *body, int esvoid);
+struct ast *newcall(struct symbol *s, struct ast *args);
+int esVerdadero(tset v);

@@ -9,18 +9,20 @@
 %option noyywrap
 
 %%
-"if" {return IF;}
-"while" {return WHILE;}
-"def" {return DEF;}
-"return" {return RETURN;}
 "=" {return ASIGNACION;}
+"func" {return FUNC;}
+"funcvoid" {return FUNCVOID;}
+"retorna" {return RETORNA;}
+"if" {return IF;}          /* antes: "si" -> SI */
+"else" {return ELSE;}      /* antes: "sino" -> SINO */
+"while" {return WHILE;}
+"(" {return PAREN_I;}
+")" {return PAREN_D;}
 "pop" {return POPA;}
 "push" {return PUSHA;}
 "difc" {return DIFC;}
 "inter" {return INTE;}
 "un" {return UN;} 
-"(" {return PAREN_I;}
-")" {return PAREN_D;}
 "{" {return LLAVE_I;}
 "}" {return LLAVE_D;}
 "[" {return CORCH_I;}
