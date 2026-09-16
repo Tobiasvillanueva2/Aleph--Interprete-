@@ -6,10 +6,32 @@ int preguntaType(struct ast *);
 int preguntaType2(struct ast *);
 
 struct symbol symtab[9997];
- 
+
 tset retval;
 jmp_buf *return_env = NULL;
- 
+
+/* construye un resultado booleano representado como conjunto,
+   consistente con esVerdadero(): {} = falso, {verdadero} = verdadero */
+static tset newBool(int esCierto)
+{
+    tset r = newData();
+    r->type = SET;
+    if (esCierto)
+    {
+        tset e = newData();
+        e->type = STR;
+        e->str = strdup("verdadero");
+        r->elem = e;
+        r->sig = NULL;
+    }
+    else
+    {
+        r->elem = NULL;
+        r->sig = NULL;
+    }
+    return r;
+}
+
 int esVerdadero(tset v)
 {
     if (v == NULL)
@@ -18,7 +40,7 @@ int esVerdadero(tset v)
         return (v->str != NULL && strlen(v->str) > 0);
     return (v->elem != NULL);
 }
- 
+
 struct ast *newif(struct ast *cond, struct ast *th, struct ast *el)
 {
     struct ifast *a = malloc(sizeof(struct ifast));
@@ -33,7 +55,7 @@ struct ast *newif(struct ast *cond, struct ast *th, struct ast *el)
     a->el = el;
     return (struct ast *)a;
 }
- 
+
 struct ast *newfunc(struct symbol *s, struct symlist *params, struct ast *body, int esvoid)
 {
     struct funcdef *a = malloc(sizeof(struct funcdef));
@@ -47,14 +69,14 @@ struct ast *newfunc(struct symbol *s, struct symlist *params, struct ast *body, 
     a->params = params;
     a->body = body;
     a->esvoid = esvoid;
- 
+
     s->func = (struct ast *)a;
     s->syms = params;
     s->functype = esvoid ? 2 : 1;
- 
+
     return (struct ast *)a;
 }
- 
+
 struct ast *newcall(struct symbol *s, struct ast *args)
 {
     struct funcall *a = malloc(sizeof(struct funcall));
@@ -232,6 +254,239 @@ tset eval(struct ast *a)
         v->type = LIST;
         v->elem = NULL;
         break;
+
+    case OP_SUMA:
+    case OP_RESTA:
+    case OP_MULT:
+    case OP_DIV:
+    {
+        tset izq = eval(a->l);
+        tset der = eval(a->r);
+        int ok = 1;
+
+        if (izq == NULL || der == NULL || izq->type != STR || der->type != STR)
+        {
+            yyerror("operacion aritmetica: ambos operandos deben ser elementos numericos");
+            ok = 0;
+            v = NULL;
+        }
+        else if (strchr(izq->str, '.') != NULL || strchr(der->str, '.') != NULL)
+        {
+            /* ---- camino NUEVO: al menos un operando tiene '.', se opera en double ---- */
+            char *fin1, *fin2;
+            double n1, n2, res = 0.0;
+
+            n1 = strtod(izq->str, &fin1);
+            n2 = strtod(der->str, &fin2);
+
+            if (*fin1 != '\0' || *fin2 != '\0')
+            {
+                yyerror("operacion aritmetica: el operando no es un numero valido");
+                ok = 0;
+            }
+            else if (a->nodetype == OP_DIV && n2 == 0.0)
+            {
+                yyerror("division por cero");
+                ok = 0;
+            }
+            else
+            {
+                switch (a->nodetype)
+                {
+                case OP_SUMA: res = n1 + n2; break;
+                case OP_RESTA: res = n1 - n2; break;
+                case OP_MULT: res = n1 * n2; break;
+                case OP_DIV: res = n1 / n2; break;
+                }
+            }
+
+            if (ok)
+            {
+                char buf[64];
+                sprintf(buf, "%g", res);
+                v = newData();
+                v->type = STR;
+                v->str = strdup(buf);
+            }
+            else
+            {
+                v = NULL;
+            }
+        }
+        else
+        {
+            /* ---- camino EXISTENTE (enteros), sin cambios ---- */
+            char *fin1, *fin2;
+            long n1 = 0, n2 = 0, res = 0;
+
+            n1 = strtol(izq->str, &fin1, 10);
+            n2 = strtol(der->str, &fin2, 10);
+            if (*fin1 != '\0' || *fin2 != '\0')
+            {
+                yyerror("operacion aritmetica: el operando no es un numero entero valido");
+                ok = 0;
+            }
+            else if (a->nodetype == OP_DIV && n2 == 0)
+            {
+                yyerror("division por cero");
+                ok = 0;
+            }
+            else
+            {
+                switch (a->nodetype)
+                {
+                case OP_SUMA: res = n1 + n2; break;
+                case OP_RESTA: res = n1 - n2; break;
+                case OP_MULT: res = n1 * n2; break;
+                case OP_DIV: res = n1 / n2; break;
+                }
+            }
+
+            if (ok)
+            {
+                char buf[32];
+                sprintf(buf, "%ld", res);
+                v = newData();
+                v->type = STR;
+                v->str = strdup(buf);
+            }
+            else
+            {
+                v = NULL;
+            }
+        }
+    }
+    break;
+
+    case OP_NEG:
+    {
+        tset operando = eval(a->l);
+
+        if (operando == NULL || operando->type != STR)
+        {
+            yyerror("negacion: el operando debe ser un elemento numerico");
+            v = NULL;
+            break;
+        }
+
+        if (strchr(operando->str, '.') != NULL)
+        {
+            char *fin;
+            double n = strtod(operando->str, &fin);
+            if (*fin != '\0')
+            {
+                yyerror("negacion: el operando no es un numero valido");
+                v = NULL;
+                break;
+            }
+            char buf[64];
+            sprintf(buf, "%g", -n);
+            v = newData();
+            v->type = STR;
+            v->str = strdup(buf);
+            break;
+        }
+
+        char *fin;
+        long n = strtol(operando->str, &fin, 10);
+        if (*fin != '\0')
+        {
+            yyerror("negacion: el operando no es un numero entero valido");
+            v = NULL;
+            break;
+        }
+        {
+            char buf[32];
+            sprintf(buf, "%ld", -n);
+            v = newData();
+            v->type = STR;
+            v->str = strdup(buf);
+        }
+    }
+    break;
+
+    case CMP_MAYOR:
+    case CMP_MENOR:
+    {
+        tset izq = eval(a->l);
+        tset der = eval(a->r);
+        char *fin1, *fin2;
+        double n1, n2;
+
+        if (izq == NULL || der == NULL || izq->type != STR || der->type != STR)
+        {
+            yyerror("comparacion: ambos operandos deben ser elementos numericos");
+            v = newBool(0);
+            break;
+        }
+        n1 = strtod(izq->str, &fin1);
+        n2 = strtod(der->str, &fin2);
+        if (*fin1 != '\0' || *fin2 != '\0')
+        {
+            yyerror("comparacion: el operando no es un numero valido");
+            v = newBool(0);
+            break;
+        }
+        v = newBool(a->nodetype == CMP_MAYOR ? (n1 > n2) : (n1 < n2));
+    }
+    break;
+
+    case CMP_IGUALIGUAL:
+    case CMP_DISTINTO:
+    {
+        tset izq = eval(a->l);
+        tset der = eval(a->r);
+        int iguales;
+        int esNumerico = (izq != NULL && der != NULL && izq->type == STR && der->type == STR);
+
+        if (esNumerico)
+        {
+            char *fin1, *fin2;
+            double n1 = strtod(izq->str, &fin1);
+            double n2 = strtod(der->str, &fin2);
+            if (*fin1 == '\0' && *fin2 == '\0')
+            {
+                iguales = (n1 == n2);
+            }
+            else
+            {
+                /* alguno no era un numero valido: comparar como string/estructura */
+                iguales = (izq == NULL || der == NULL) ? (izq == der) : (isEqual(izq, der) == 0);
+            }
+        }
+        else
+        {
+            iguales = (izq == NULL || der == NULL) ? (izq == der) : (isEqual(izq, der) == 0);
+        }
+        v = newBool(a->nodetype == CMP_IGUALIGUAL ? iguales : !iguales);
+    }
+    break;
+
+    case CMP_PERTENECE:
+    {
+        tset elem = eval(a->l);
+        tset cont = eval(a->r);
+        if (elem == NULL || elem->type != STR)
+        {
+            yyerror("pertenece: el operando izquierdo debe ser un elemento (string)");
+            v = newBool(0);
+        }
+        else
+        {
+            int encontrado = In(cont, elem->str);
+            v = newBool(encontrado == 0);
+        }
+    }
+    break;
+
+    case CMP_IGUAL:
+    {
+        tset izq = eval(a->l);
+        tset der = eval(a->r);
+        int iguales = (izq == NULL || der == NULL) ? (izq == der) : (isEqual(izq, der) == 0);
+        v = newBool(iguales);
+    }
+    break;
 
     case LIST_STMT:
         v = eval(a->l);

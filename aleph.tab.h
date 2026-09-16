@@ -1,22 +1,23 @@
-/* A Bison parser, made by GNU Bison 3.8.2.  */
 
-/* Bison interface for Yacc-like parsers in C
+/* A Bison parser, made by GNU Bison 2.4.1.  */
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
-   Inc.
-
+/* Skeleton interface for Bison's Yacc-like parsers in C
+   
+      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
+   
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
-
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -27,74 +28,72 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-
+   
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
-   especially those whose name start with YY_ or yy_.  They are
-   private implementation details that can be changed or removed.  */
 
-#ifndef YY_YY_ALEPH_TAB_H_INCLUDED
-# define YY_YY_ALEPH_TAB_H_INCLUDED
-/* Debug traces.  */
-#ifndef YYDEBUG
-# define YYDEBUG 0
-#endif
-#if YYDEBUG
-extern int yydebug;
-#endif
-
-/* Token kinds.  */
+/* Tokens.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-  enum yytokentype
-  {
-    YYEMPTY = -2,
-    YYEOF = 0,                     /* "end of file"  */
-    YYerror = 256,                 /* error  */
-    YYUNDEF = 257,                 /* "invalid token"  */
-    IDVARIABLE = 258,              /* IDVARIABLE  */
-    IDCADENA = 259,                /* IDCADENA  */
-    ASIGNACION = 260,              /* ASIGNACION  */
-    COMA = 261,                    /* COMA  */
-    LLAVE_I = 262,                 /* LLAVE_I  */
-    LLAVE_D = 263,                 /* LLAVE_D  */
-    CORCH_I = 264,                 /* CORCH_I  */
-    CORCH_D = 265,                 /* CORCH_D  */
-    INTE = 266,                    /* INTE  */
-    UN = 267,                      /* UN  */
-    DIFC = 268,                    /* DIFC  */
-    POPA = 269,                    /* POPA  */
-    PUSHA = 270,                   /* PUSHA  */
-    EOL = 271                      /* EOL  */
-  };
-  typedef enum yytokentype yytoken_kind_t;
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
+      know about them.  */
+   enum yytokentype {
+     IDVARIABLE = 258,
+     IDCADENA = 259,
+     ASIGNACION = 260,
+     COMA = 261,
+     LLAVE_I = 262,
+     LLAVE_D = 263,
+     CORCH_I = 264,
+     CORCH_D = 265,
+     INTE = 266,
+     UN = 267,
+     DIFC = 268,
+     POPA = 269,
+     PUSHA = 270,
+     FUNC = 271,
+     FUNCVOID = 272,
+     RETORNA = 273,
+     IF = 274,
+     ELSE = 275,
+     WHILE = 276,
+     PERTENECE = 277,
+     IGUAL = 278,
+     SUMA = 279,
+     RESTA = 280,
+     MULT = 281,
+     DIV = 282,
+     PAREN_I = 283,
+     PAREN_D = 284,
+     EOL = 285
+   };
 #endif
 
-/* Value type.  */
+
+
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-union YYSTYPE
+typedef union YYSTYPE
 {
+
+/* Line 1676 of yacc.c  */
 #line 8 "aleph.y"
 
     struct symbol* v;
     struct ast *a;
     char* e;
+    struct symlist *sl;
 
-#line 86 "aleph.tab.h"
 
-};
-typedef union YYSTYPE YYSTYPE;
+
+/* Line 1676 of yacc.c  */
+#line 91 "aleph.tab.h"
+} YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
+# define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 #endif
-
 
 extern YYSTYPE yylval;
 
 
-int yyparse (void);
-
-
-#endif /* !YY_YY_ALEPH_TAB_H_INCLUDED  */

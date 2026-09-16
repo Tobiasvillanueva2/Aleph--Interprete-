@@ -166,6 +166,27 @@ tset newData()
 
     return nue;
 }
+/* copia profunda real de un tset: a diferencia de Copy_Tset() (que solo
+   hace "nue = A", un alias del mismo puntero), esta funcion reserva
+   memoria nueva para cada nodo del arbol (contenedores y hojas STR) */
+tset DeepCopyTset(tset A)
+{
+    tset nue;
+    if (A == NULL)
+        return NULL;
+    nue = (conjunto *)malloc(sizeof(conjunto));
+    nue->type = A->type;
+    if (A->type == 1) /* STR: nodo hoja */
+    {
+        nue->str = A->str ? strdup(A->str) : NULL;
+    }
+    else /* SET o LIST: nodo contenedor */
+    {
+        nue->elem = DeepCopyTset(A->elem);
+        nue->sig = DeepCopyTset(A->sig);
+    }
+    return nue;
+}
 tset QuitaVacio(tset cab)
 {
     conjunto aux;
@@ -297,12 +318,17 @@ tset returnElem(tset d, int pos)
 }
 tset Carga_Cola(tset cabeza, tset nue)
 {
+    /* "nue" puede llegar de dos formas distintas segun quien llame:
+       - un elemento crudo (STR), como hace el operador push
+       - un nodo contenedor de un solo elemento (como devuelve returnElem),
+         usado por U(). En ese caso hay que desenvolverlo una vez. */
+    tset elemento = (nue->type == 1) ? nue : nue->elem; /* 1 = STR */
     tset aux;
     if (cabeza == NULL)
     {
         cabeza = (conjunto *)malloc(sizeof(conjunto));
         cabeza->type = nue->type;
-        cabeza->elem = nue->elem;
+        cabeza->elem = elemento;
         cabeza->sig = NULL;
     }
     else
@@ -316,7 +342,7 @@ tset Carga_Cola(tset cabeza, tset nue)
         aux->sig->type = aux->type;
         aux = aux->sig;
         aux->sig = NULL;
-        aux->elem = nue->elem;
+        aux->elem = elemento;
     }
     return cabeza;
 }
@@ -822,12 +848,12 @@ tset U(tset a, tset b)
     else if (a->type == 3 && b->type == 3)
     {
         tset nue;
-        nue = a;
+        nue = DeepCopyTset(a); /* antes: nue = a; (alias, mutaba A en el lugar) */
         while (b != NULL)
         {
             if (BusquedaEle(*b->elem, a) != 0)
             {
-                nue = Carga_Cola(nue, returnElem(b, 1));
+                nue = Carga_Cola(nue, DeepCopyTset(returnElem(b, 1)));
             }
             b = b->sig;
         }
@@ -1041,4 +1067,3 @@ tset DIFF(tset A, tset B)
 {
     return D(A, B);
 }
-

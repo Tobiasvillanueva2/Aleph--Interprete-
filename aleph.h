@@ -27,6 +27,17 @@
 #define RETURN 22
 #define FUNC_DEF 23
 #define FUNC_CALL 24
+#define CMP_PERTENECE 25
+#define CMP_IGUAL 26
+#define OP_SUMA 27
+#define OP_RESTA 28
+#define OP_MULT 29
+#define OP_DIV 30
+#define OP_NEG 31
+#define CMP_MAYOR 32
+#define CMP_MENOR 33
+#define CMP_IGUALIGUAL 34
+#define CMP_DISTINTO 35
 
 extern int yylineno;
 void yyerror(char *s);

@@ -23,6 +23,7 @@ tset newNestedData(tset d, int t); // listo
 int Return_Type(tset);             // listo
 char *toStr(tset, int);            // solo sirve para los type 1 o los type 3 con poscion
 tset Copy_Tset(tset);              // listo
+tset DeepCopyTset(tset);            // copia profunda real (Copy_Tset no copia, solo alias el puntero)
 tset newData();
 void setElem(tset, int); // pedir la posicion y el elemento
 tset inicializa();       // espacio de memoria type para modificar

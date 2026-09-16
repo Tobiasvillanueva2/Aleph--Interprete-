@@ -18,15 +18,22 @@ tset salida;
 %token LLAVE_I LLAVE_D CORCH_I CORCH_D
 %token INTE UN DIFC POPA PUSHA
 %token FUNC FUNCVOID RETORNA IF ELSE WHILE
+%token PERTENECE IGUAL
+%token SUMA RESTA MULT DIV
+%token MAYOR MENOR IGUALIGUAL DISTINTO
 %token PAREN_I PAREN_D
 %token EOL
 
-%type <a> list_expr expr lit_list lit_conj sentencia operaciones  op_conj op_list asignacion list_asig
+%type <a> list_expr expr lit_list lit_conj sentencia operaciones  op_conj op_list op_num op_rel asignacion list_asig
 %type <a> func_def bloque lista_sent ctrl_stmt if_sent while_sent retorna_sent llamada arg_list
 %type <sl> param_list
 
 %left UN DIFC
 %left INTE
+%left PERTENECE IGUAL
+%left MAYOR MENOR IGUALIGUAL DISTINTO
+%left SUMA RESTA
+%left MULT DIV
 %left POPA PUSHA
 
 %%
@@ -52,6 +59,7 @@ expr:IDCADENA    {$$=newelem($1);}
 |lit_list
 |operaciones 
 |llamada
+|PAREN_I expr PAREN_D {$$=$2;}
 |IDVARIABLE          {$$=newref($1);}
 ;
 
@@ -66,11 +74,27 @@ list_asig:
 
 operaciones: op_conj
 |op_list
+|op_num
+|op_rel
+;
+
+op_num: expr SUMA expr {$$=newast(OP_SUMA,$1,$3);}
+|expr RESTA expr       {$$=newast(OP_RESTA,$1,$3);}
+|expr MULT expr        {$$=newast(OP_MULT,$1,$3);}
+|expr DIV expr         {$$=newast(OP_DIV,$1,$3);}
+;
+
+op_rel: expr MAYOR expr      {$$=newast(CMP_MAYOR,$1,$3);}
+|expr MENOR expr             {$$=newast(CMP_MENOR,$1,$3);}
+|expr IGUALIGUAL expr        {$$=newast(CMP_IGUALIGUAL,$1,$3);}
+|expr DISTINTO expr          {$$=newast(CMP_DISTINTO,$1,$3);}
 ;
 
 op_conj: expr UN expr   {$$=newast(OP_UN,$1,$3);}
 | expr INTE expr    {$$=newast(OP_INTE,$1,$3);}
 | expr DIFC expr    {$$=newast(OP_DIFC,$1,$3);}
+| expr PERTENECE expr {$$=newast(CMP_PERTENECE,$1,$3);}
+| expr IGUAL expr     {$$=newast(CMP_IGUAL,$1,$3);}
 ;
 
 op_list: POPA expr {$$=newast(OP_POP,$2,NULL);}
