@@ -1,4 +1,5 @@
 #include "conjunto.h"
+#include "automata.h"
 #include <setjmp.h>
 
 #define STR 1
@@ -38,6 +39,10 @@
 #define CMP_MENOR 33
 #define CMP_IGUALIGUAL 34
 #define CMP_DISTINTO 35
+#define CONSTRUYE_AF 36
+#define ANALIZA_AF 37
+#define DETERMINIZAR_AF 38
+#define ESAFD_AF 39
 
 extern int yylineno;
 void yyerror(char *s);

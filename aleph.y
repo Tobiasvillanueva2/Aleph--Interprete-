@@ -21,6 +21,7 @@ tset salida;
 %token PERTENECE IGUAL
 %token SUMA RESTA MULT DIV
 %token MAYOR MENOR IGUALIGUAL DISTINTO
+%token AUTOMATA ANALIZA DETERMINIZAR ESAFD
 %token PAREN_I PAREN_D
 %token EOL
 
@@ -60,6 +61,10 @@ expr:IDCADENA    {$$=newelem($1);}
 |operaciones 
 |llamada
 |PAREN_I expr PAREN_D {$$=$2;}
+|AUTOMATA PAREN_I arg_list PAREN_D          {$$=newast(CONSTRUYE_AF,$3,NULL);}
+|ANALIZA PAREN_I expr COMA expr PAREN_D     {$$=newast(ANALIZA_AF,$3,$5);}
+|DETERMINIZAR PAREN_I expr PAREN_D          {$$=newast(DETERMINIZAR_AF,$3,NULL);}
+|ESAFD PAREN_I expr PAREN_D                 {$$=newast(ESAFD_AF,$3,NULL);}
 |IDVARIABLE          {$$=newref($1);}
 ;
 

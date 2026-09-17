@@ -23,6 +23,10 @@
 "-" {return RESTA;}
 "*" {return MULT;}
 "/" {return DIV;}
+"automata" {return AUTOMATA;}
+"analiza" {return ANALIZA;}
+"determinizar" {return DETERMINIZAR;}
+"esafd" {return ESAFD;}
 "pertenece" {return PERTENECE;}
 "igual" {return IGUAL;}
 "func" {return FUNC;}

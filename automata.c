@@ -393,3 +393,31 @@ tAutomata transformarAFND(tAutomata AFND)
     }
     return AF;
 }
+
+/* ==================================================================
+   Puente con Aleph: un tAutomata se representa como una LIST de 5
+   elementos en orden fijo, para que siga siendo "todo tset" sin
+   tocar struct nodo en conjunto.h.
+   ================================================================== */
+
+tset empaquetarAF(tAutomata af)
+{
+    tset lista = nuevaListaAF();
+    pushAF(&lista, af.estados);
+    pushAF(&lista, af.alfabeto);
+    pushAF(&lista, af.trans);
+    pushAF(&lista, af.ini);
+    pushAF(&lista, af.fin);
+    return lista;
+}
+
+tAutomata desempaquetarAF(tset lista)
+{
+    tAutomata af;
+    af.estados = elemAF(lista, 0);
+    af.alfabeto = elemAF(lista, 1);
+    af.trans = elemAF(lista, 2);
+    af.ini = elemAF(lista, 3);
+    af.fin = elemAF(lista, 4);
+    return af;
+}

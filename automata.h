@@ -49,4 +49,8 @@ tset transicionAF(tset deltaL, tset qSet, char alf);
 int analizaCadAF(tAutomata AF, tset qSet, char *cad);
 tAutomata transformarAFND(tAutomata);
 
+/* --- puente con Aleph: representar un tAutomata como un tset --- */
+tset empaquetarAF(tAutomata af);       /* LIST de 5: [estados,alfabeto,trans,ini,fin] */
+tAutomata desempaquetarAF(tset lista); /* inverso de empaquetarAF */
+
 #endif

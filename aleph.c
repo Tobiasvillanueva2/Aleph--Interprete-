@@ -405,6 +405,83 @@ tset eval(struct ast *a)
     }
     break;
 
+    case CONSTRUYE_AF:
+    {
+        /* a->l es la cadena LIST_E de argumentos: estados,alfabeto,trans,ini,fin */
+        struct ast *args = a->l;
+        tset partes[5];
+        int i = 0;
+        while (args != NULL && i < 5)
+        {
+            partes[i] = eval(args->l);
+            args = args->r;
+            i++;
+        }
+        if (i != 5 || args != NULL)
+        {
+            yyerror("automata: se esperan exactamente 5 argumentos (estados,alfabeto,trans,ini,fin)");
+            v = NULL;
+        }
+        else
+        {
+            tAutomata af = creaAF(partes[0], partes[1], partes[2], partes[3], partes[4]);
+            v = empaquetarAF(af);
+        }
+    }
+    break;
+
+    case ANALIZA_AF:
+    {
+        tset afTset = eval(a->l);
+        tset cadTset = eval(a->r);
+        if (afTset == NULL || cadTset == NULL || cadTset->type != STR)
+        {
+            yyerror("analiza: argumentos invalidos (se espera un automata y un elemento)");
+            v = newBool(0);
+        }
+        else
+        {
+            tAutomata af = desempaquetarAF(afTset);
+            int acepta = analizaCadAF(af, af.ini, cadTset->str);
+            v = newBool(acepta);
+        }
+    }
+    break;
+
+    case DETERMINIZAR_AF:
+    {
+        tset afTset = eval(a->l);
+        if (afTset == NULL)
+        {
+            yyerror("determinizar: automata invalido");
+            v = NULL;
+        }
+        else
+        {
+            tAutomata af = desempaquetarAF(afTset);
+            tAutomata afd = transformarAFND(af);
+            v = empaquetarAF(afd);
+        }
+    }
+    break;
+
+    case ESAFD_AF:
+    {
+        tset afTset = eval(a->l);
+        if (afTset == NULL)
+        {
+            yyerror("esafd: automata invalido");
+            v = newBool(0);
+        }
+        else
+        {
+            tAutomata af = desempaquetarAF(afTset);
+            int tipo = comoEsAF(af);
+            v = newBool(tipo == 0);
+        }
+    }
+    break;
+
     case CMP_MAYOR:
     case CMP_MENOR:
     {
