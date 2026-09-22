@@ -64,9 +64,17 @@
      RESTA = 280,
      MULT = 281,
      DIV = 282,
-     PAREN_I = 283,
-     PAREN_D = 284,
-     EOL = 285
+     MAYOR = 283,
+     MENOR = 284,
+     IGUALIGUAL = 285,
+     DISTINTO = 286,
+     AUTOMATA = 287,
+     ANALIZA = 288,
+     DETERMINIZAR = 289,
+     ESAFD = 290,
+     PAREN_I = 291,
+     PAREN_D = 292,
+     EOL = 293
    };
 #endif
 
@@ -87,7 +95,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 91 "aleph.tab.h"
+#line 99 "aleph.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
